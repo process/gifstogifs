@@ -3,6 +3,12 @@ var express = require('express')
   , server = require('http').createServer(app)
   , io = require('socket.io').listen(server);
 
+// Force long polling for Cedar stack
+io.configure(function () {
+  io.set('transports', ['xhr-polling']);
+  io.set('polling duration', 10);
+});
+
 // Start server
 var port = process.env.PORT || 8080;
 server.listen(port);
