@@ -5,12 +5,132 @@
   <script src="/socket.io/socket.io.js"></script>
   <script src="//ajax.googleapis.com/ajax/libs/jquery/1.9.1/jquery.min.js"></script>
   <script>
-    var socket = io.connect('/');
+    var socket = io.connect();
+    var leader = false;
+    var choice = -1;
+
+    socket.on('message', function (name, message) {
+      $('#chat').append('<b>' + name + '</b>:' + message + '<br />')
+    });
+
+    socket.on('gif_hand', function (gifs) {
+      for (g in gifs) {
+        $('<img src="img/gifs/' + gifs[g] + '"/>').load(function () {
+          $(this).appendTo('#gifs');
+          $(this).click(function () {
+            if (!leader) {
+              var g_ = new Object(g);
+              choice = gifs[g_];
+              socket.emit('choose_card', gifs[g_]);
+              alert("GIF chosen");
+            }
+          });
+        });
+      }
+    });
+
+    socket.on('leader_notif', function (game_started) {
+      alert("You're the new game leader! You get to judge!");
+      leader = true;
+
+      if (!game_started) {
+        $('#start-game').css('display', 'block');
+      }
+    });
+
+    socket.on('scenario', function (s) {
+      $('#scenario').html("Your scenario is <b>" + s + "</b>")
+    })
+
+    socket.on('review', function (gifs) {
+      for (g in gifs) {
+        $('<img src="img/gifs/' + gifs[g] + '"/>').load(function () {
+          $(this).appendTo('#gif-review');
+          $(this).click(function () {
+            if (leader)
+              socket.emit('choose_winner', gifs[g]);
+          });
+        });
+      }
+
+      $('img[src$="' + choice + '"]').remove();
+    });
+
+    socket.on('winner_notif', function (name) {
+      alert(name + " is the winner!");
+      $('#gif-review').html('Review gifs');
+      if (leader) leader = false;
+    });
+
+    socket.on('new_gif', function (gif) {
+      $('<img src="img/gifs/' + gif + '"/>').load(function () {
+        $(this).appendTo('#gifs');
+        $(this).click(function () {
+          if (!leader) {
+            choice = gif;
+            socket.emit('choose_card', gif);
+            alert("GIF chosen");
+          }
+        });
+      });
+    });
+
+    $(function() {
+      $('#join-button').click(function() {
+        var room_name = $('#room-to-join').val();
+        var player_name = $('#player-name').val();
+        socket.emit('join_game', room_name, player_name);
+
+        $('#landing-container').css('display', 'none');
+        $('#game-container').css('display', 'block');
+    	});
+
+      $('#sendchat').click(function() {
+        var message = $('#message').val();
+        socket.send(message);
+      });
+
+      $('#start-game').click(function() {
+        socket.emit('start_game', 'random');
+        $('#start-game').css('display', 'none');
+      });
+    });
   </script>
+  <style>
+  #game-container, #start-game {
+    display: none;
+  }
+
+  #gifs, #gif-review {
+    border: 1px solid black;
+  }
+  </style>
 </head>
 
 <body>
-Gifs to Gifs
+  <div id="landing-container">
+    Gifs to Gifs<br /><br />
+
+    Join game: <input id="room-to-join" type="text" placeholder="Game Code or URL">
+    Name: <input id="player-name" type="text"><br />
+    <button id="join-button">Join it!</button><br /><br />
+  </div>
+
+  <div id="game-container">
+    <button id="start-game">Start the game</button>
+    <div id="scenario">
+      Scenario will appear here
+    </div>
+    <div id="gif-review">
+      Gifs to review will appear here
+    </div>
+    <div id="gifs">
+      Your Gifs will appear here
+    </div>
+    Message: <input type="text" id="message"><br />
+    <button id="sendchat">Post message</button>
+    <div id="chat">Chat will appear here.<br /></div>
+  </div>
 </body>
 </html>
 
